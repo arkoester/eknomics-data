@@ -1,0 +1,135 @@
+{
+ "schema": 1,
+ "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
+ "checkedAt": "2026-09-29T12:30:00Z",
+ "note": "Seeded by hand from values verified 2026-09-29. The first run of the weekly Action replaces this file.",
+ "series": {
+  "mortgage30": {
+   "label": "30-year fixed mortgage rate",
+   "unit": "percent",
+   "source": "Freddie Mac Primary Mortgage Market Survey (via FRED)",
+   "fred": "MORTGAGE30US",
+   "frequency": "weekly",
+   "latest": {
+    "date": "2026-09-24",
+    "value": 7.03
+   },
+   "annual": {
+    "2016": 3.65,
+    "2017": 3.99,
+    "2018": 4.54,
+    "2019": 3.94,
+    "2020": 3.1,
+    "2021": 2.96,
+    "2022": 5.34,
+    "2023": 6.81,
+    "2024": 6.72,
+    "2025": 6.6
+   }
+  },
+  "mortgage15": {
+   "label": "15-year fixed mortgage rate",
+   "unit": "percent",
+   "source": "Freddie Mac Primary Mortgage Market Survey (via FRED)",
+   "fred": "MORTGAGE15US",
+   "frequency": "weekly",
+   "latest": {
+    "date": "2026-09-24",
+    "value": 6.42
+   }
+  },
+  "ilActiveListings": {
+   "label": "Active home listings in Illinois",
+   "unit": "listings",
+   "source": "Realtor.com (via FRED)",
+   "fred": "ACTLISCOUIL",
+   "frequency": "monthly",
+   "latest": {
+    "date": "2026-08-01",
+    "value": 21354
+   },
+   "july": {
+    "2016": 61100,
+    "2017": 55908,
+    "2018": 55887,
+    "2019": 56178,
+    "2020": 37961,
+    "2021": 27547,
+    "2022": 24423,
+    "2023": 17538,
+    "2024": 19359,
+    "2025": 20843,
+    "2026": 20504
+   }
+  },
+  "madisonMedianListPrice": {
+   "label": "Median listing price, Madison County, IL",
+   "unit": "dollars",
+   "source": "Realtor.com (via FRED)",
+   "fred": "MEDLISPRI17119",
+   "frequency": "monthly",
+   "latest": {
+    "date": "2026-08-01",
+    "value": 229500
+   }
+  },
+  "madisonMedianDaysOnMarket": {
+   "label": "Median days on market, Madison County, IL",
+   "unit": "days",
+   "source": "Realtor.com (via FRED)",
+   "fred": "MEDDAYONMAR17119",
+   "frequency": "monthly",
+   "latest": {
+    "date": "2026-07-01",
+    "value": 36
+   }
+  },
+  "madisonHPI": {
+   "label": "House price index, Madison County, IL (2000 = 100)",
+   "unit": "index",
+   "source": "FHFA (via FRED)",
+   "fred": "ATNHPIUS17119A",
+   "frequency": "annual",
+   "latest": {
+    "date": "2025-01-01",
+    "value": 209.58
+   },
+   "annual": {
+    "2021": 153.1,
+    "2022": 171.22,
+    "2023": 185.3,
+    "2024": 196.44,
+    "2025": 209.58
+   }
+  }
+ },
+ "manual": {
+  "arm51": {
+   "value": 6.1,
+   "date": "2026-09-18",
+   "label": "5/1 adjustable-rate mortgage (ARM) rate, average contract rate",
+   "source": "Mortgage Bankers Association Weekly Applications Survey",
+   "armShare": 9.8,
+   "armShareNote": "ARM share of total mortgage applications, same week",
+   "refresh": "quarterly",
+   "checkedAt": "2026-09-29"
+  },
+  "insuranceIL200k": {
+   "value": 2039,
+   "date": "2026-08-04",
+   "label": "Average yearly homeowners insurance in Illinois, $200,000 dwelling coverage",
+   "source": "Insure.com",
+   "refresh": "yearly",
+   "checkedAt": "2026-09-29"
+  },
+  "taxRateMadison": {
+   "value": 1.75,
+   "date": "2026-09-29",
+   "label": "Madison County average effective property tax rate (percent of home value)",
+   "source": "SmartAsset",
+   "refresh": "yearly",
+   "checkedAt": "2026-09-29"
+  }
+ },
+ "warnings": []
+}

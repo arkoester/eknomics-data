@@ -1,0 +1,75 @@
+name: Weekly data refresh
+
+on:
+  schedule:
+    # Fridays 14:17 UTC (9:17 a.m. Central), the morning after Freddie Mac's Thursday release
+    - cron: "17 14 * * 5"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "feed/manual.json"
+      - ".github/workflows/weekly.yml"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test the refresh script
+        run: python -m unittest discover -s scripts -p "test_*.py" -v
+
+      - name: Build the feed
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python scripts/update_feed.py
+
+      - name: Save the feed
+        if: always()
+        run: |
+          git config user.name "eknomics-data bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add feed/eknomics.json
+          if git diff --cached --quiet; then
+            echo "No changes to save."
+          else
+            git commit -m "Data refresh $(date -u +%Y-%m-%d)"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Refresh the jsDelivr copy
+        if: always()
+        run: curl -fsS "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/feed/eknomics.json" || true
+
+      - name: Flag a problem
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "Data refresh needs attention";
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `@${context.repo.owner} The weekly refresh hit a problem on ${new Date().toISOString().slice(0, 10)}. ` +
+              `Modules keep using the last good numbers, so students are not affected. Details: ${run}`;
+            const { data: open } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 50 });
+            const existing = open.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body });
+            }

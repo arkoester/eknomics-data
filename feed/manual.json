@@ -1,0 +1,28 @@
+{
+ "arm51": {
+  "value": 6.10,
+  "date": "2026-09-18",
+  "label": "5/1 adjustable-rate mortgage (ARM) rate, average contract rate",
+  "source": "Mortgage Bankers Association Weekly Applications Survey",
+  "armShare": 9.8,
+  "armShareNote": "ARM share of total mortgage applications, same week",
+  "refresh": "quarterly",
+  "checkedAt": "2026-09-29"
+ },
+ "insuranceIL200k": {
+  "value": 2039,
+  "date": "2026-08-04",
+  "label": "Average yearly homeowners insurance in Illinois, $200,000 dwelling coverage",
+  "source": "Insure.com",
+  "refresh": "yearly",
+  "checkedAt": "2026-09-29"
+ },
+ "taxRateMadison": {
+  "value": 1.75,
+  "date": "2026-09-29",
+  "label": "Madison County average effective property tax rate (percent of home value)",
+  "source": "SmartAsset",
+  "refresh": "yearly",
+  "checkedAt": "2026-09-29"
+ }
+}
