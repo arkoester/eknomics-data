@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-09-29T12:33:55Z",
+ "checkedAt": "2026-10-02T19:23:09Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -10,14 +10,10 @@
    "fred": "MORTGAGE30US",
    "frequency": "weekly",
    "latest": {
-    "date": "2026-09-24",
-    "value": 7.03
+    "date": "2026-10-01",
+    "value": 7.28
    },
    "recent": [
-    [
-     "2026-07-02",
-     6.43
-    ],
     [
      "2026-07-09",
      6.49
@@ -65,6 +61,10 @@
     [
      "2026-09-24",
      7.03
+    ],
+    [
+     "2026-10-01",
+     7.28
     ]
    ],
    "annual": {
@@ -78,9 +78,9 @@
     "2023": 6.81,
     "2024": 6.72,
     "2025": 6.6,
-    "2026": 6.41
+    "2026": 6.43
    },
-   "annualThrough": "2026-09-24"
+   "annualThrough": "2026-10-01"
   },
   "mortgage15": {
    "label": "15-year fixed mortgage rate",
@@ -89,14 +89,10 @@
    "fred": "MORTGAGE15US",
    "frequency": "weekly",
    "latest": {
-    "date": "2026-09-24",
-    "value": 6.42
+    "date": "2026-10-01",
+    "value": 6.6
    },
    "recent": [
-    [
-     "2026-07-02",
-     5.79
-    ],
     [
      "2026-07-09",
      5.82
@@ -144,6 +140,10 @@
     [
      "2026-09-24",
      6.42
+    ],
+    [
+     "2026-10-01",
+     6.6
     ]
    ]
   },
@@ -154,8 +154,8 @@
    "fred": "ACTLISCOUIL",
    "frequency": "monthly",
    "latest": {
-    "date": "2026-08-01",
-    "value": 21354
+    "date": "2026-09-01",
+    "value": 22584
    },
    "july": {
     "2016": 61154,
@@ -178,8 +178,8 @@
    "fred": "MEDLISPRI17119",
    "frequency": "monthly",
    "latest": {
-    "date": "2026-08-01",
-    "value": 229500
+    "date": "2026-09-01",
+    "value": 249950
    }
   },
   "madisonMedianDaysOnMarket": {
@@ -189,8 +189,8 @@
    "fred": "MEDDAYONMAR17119",
    "frequency": "monthly",
    "latest": {
-    "date": "2026-08-01",
-    "value": 42
+    "date": "2026-09-01",
+    "value": 44
    }
   },
   "madisonHPI": {
