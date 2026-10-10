@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-09T19:34:08Z",
+ "checkedAt": "2026-10-10T13:59:12Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -219,14 +219,14 @@
  },
  "manual": {
   "arm51": {
-   "value": 6.1,
-   "date": "2026-09-18",
+   "value": 6.43,
+   "date": "2026-10-02",
    "label": "5/1 adjustable-rate mortgage (ARM) rate, average contract rate",
    "source": "Mortgage Bankers Association Weekly Applications Survey",
-   "armShare": 9.8,
+   "armShare": 10.3,
    "armShareNote": "ARM share of total mortgage applications, same week",
    "refresh": "quarterly",
-   "checkedAt": "2026-09-29"
+   "checkedAt": "2026-10-10"
   },
   "insuranceIL200k": {
    "value": 2039,
