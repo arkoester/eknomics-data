@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-10T13:59:12Z",
+ "checkedAt": "2026-10-16T18:08:01Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -10,14 +10,10 @@
    "fred": "MORTGAGE30US",
    "frequency": "weekly",
    "latest": {
-    "date": "2026-10-08",
+    "date": "2026-10-15",
     "value": 7.4
    },
    "recent": [
-    [
-     "2026-07-16",
-     6.55
-    ],
     [
      "2026-07-23",
      6.58
@@ -65,6 +61,10 @@
     [
      "2026-10-08",
      7.4
+    ],
+    [
+     "2026-10-15",
+     7.4
     ]
    ],
    "annual": {
@@ -78,9 +78,9 @@
     "2023": 6.81,
     "2024": 6.72,
     "2025": 6.6,
-    "2026": 6.46
+    "2026": 6.48
    },
-   "annualThrough": "2026-10-08"
+   "annualThrough": "2026-10-15"
   },
   "mortgage15": {
    "label": "15-year fixed mortgage rate",
@@ -89,14 +89,10 @@
    "fred": "MORTGAGE15US",
    "frequency": "weekly",
    "latest": {
-    "date": "2026-10-08",
-    "value": 6.73
+    "date": "2026-10-15",
+    "value": 6.71
    },
    "recent": [
-    [
-     "2026-07-16",
-     5.93
-    ],
     [
      "2026-07-23",
      5.96
@@ -144,6 +140,10 @@
     [
      "2026-10-08",
      6.73
+    ],
+    [
+     "2026-10-15",
+     6.71
     ]
    ]
   },
