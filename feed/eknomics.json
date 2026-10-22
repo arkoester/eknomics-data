@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-16T18:08:01Z",
+ "checkedAt": "2026-10-22T12:49:34Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -243,6 +243,77 @@
    "source": "SmartAsset",
    "refresh": "yearly",
    "checkedAt": "2026-09-29"
+  },
+  "taxYears": {
+   "2026": {
+    "checkedAt": "2026-10-22",
+    "fed": {
+     "std": 16100,
+     "brackets": [
+      [
+       0,
+       10
+      ],
+      [
+       12400,
+       12
+      ],
+      [
+       50400,
+       22
+      ],
+      [
+       105700,
+       24
+      ],
+      [
+       201775,
+       32
+      ],
+      [
+       256225,
+       35
+      ],
+      [
+       640600,
+       37
+      ]
+     ]
+    },
+    "fedSource": "IRS IR-2025-103 (October 9, 2025), Rev. Proc. 2025-32",
+    "fedUrl": "https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill",
+    "ss": {
+     "rate": 6.2,
+     "cap": 184500,
+     "medicare": 1.45
+    },
+    "ssSource": "Social Security Administration 2026 wage base, as reported by the Journal of Accountancy (October 14, 2026)",
+    "ssUrl": "https://www.journalofaccountancy.com/news/2026/oct/social-security-wage-base-and-cola-announced-for-2027/",
+    "il": {
+     "rate": 4.95,
+     "exemption": 2925,
+     "exemptionAgiLimit": 250000
+    },
+    "ilSource": "Illinois Comptroller Payroll Bulletin 1-26 (2026 exemption $2,925; rate 4.95%); IL-1040 instructions (no exemption above $250,000 federal AGI, or for dependents with income above the exemption)",
+    "ilUrl": "https://illinoiscomptroller.gov/__media/sites/comptroller/assets/File/PayrollBulletins/Payroll%20Bulletin%201-26%20-%20Illinois%20State%20Income%20Tax%20Exemptions%20-%202026.pdf",
+    "tips": {
+     "max": 25000,
+     "phaseStart": 150000,
+     "from": 2025,
+     "through": 2028
+    },
+    "tipsSource": "IRS: deduction for qualified tips, 2025 through 2028",
+    "tipsUrl": "https://www.irs.gov/newsroom/one-big-beautiful-bill-act-tax-deductions-for-working-americans-and-seniors"
+   }
+  },
+  "ilMotorFuel": {
+   "cents": 48.3,
+   "date": "2026-07-01",
+   "to": "2026-12-31",
+   "note": "Illinois raises this rate each July with inflation. For July 1 through December 31, 2026, the state paused that increase, so the rate stayed at 48.3 cents.",
+   "source": "Illinois Department of Revenue, Informational Bulletin FY 2026-23 (revised for Public Act 104-0468)",
+   "url": "https://tax.illinois.gov/research/publications/bulletins/fy-2026-23.html",
+   "checkedAt": "2026-10-22"
   }
  },
  "warnings": []
