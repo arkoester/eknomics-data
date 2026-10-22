@@ -12,6 +12,9 @@ Runs weekly in GitHub Actions (see .github/workflows/weekly.yml). Standard libra
   records a warning, and exits with status 1 so the workflow opens an issue.
 - Merges the hand-checked values in feed/manual.json (ARM rate quarterly,
   insurance and property-tax averages yearly) and warns when one is overdue.
+- Passes through the yearly tax figures for Ch 12 "Who Pays?" (taxYears, one
+  block per tax year, and ilMotorFuel) after checking each one; a block that
+  fails a check is replaced by last week's good copy.
 """
 import csv
 import io
@@ -173,6 +176,133 @@ def build_manual(manual, prev_manual, warnings):
     return out
 
 
+# ---------- Ch 12 "Who Pays?": yearly tax figures (single filer) ----------
+TAX_SOURCES = ("fedSource", "ssSource", "ilSource")
+
+
+def _num_in(v, lo, hi, what):
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+        raise ValueError(f"{what} {v!r} outside {lo} to {hi}")
+
+
+def _iso(d, what):
+    try:
+        datetime.strptime(str(d), "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"{what} {d!r} is not a YYYY-MM-DD date")
+
+
+def check_tax_year(year, t, prev_year=None):
+    """Raise ValueError if a tax-year block is malformed or looks like a typo."""
+    if not (len(year) == 4 and year.isdigit() and 2020 <= int(year) <= 2100):
+        raise ValueError(f"bad year {year!r}")
+    if not isinstance(t, dict):
+        raise ValueError("not an object")
+    fed = t.get("fed") or {}
+    _num_in(fed.get("std"), 5000, 60000, "standard deduction")
+    br = fed.get("brackets")
+    if not isinstance(br, list) or not 5 <= len(br) <= 10:
+        raise ValueError("brackets must be a list of 5 to 10 [threshold, rate] pairs")
+    for i, b in enumerate(br):
+        if not (isinstance(b, list) and len(b) == 2):
+            raise ValueError(f"bracket {i} is not [threshold, rate]")
+        _num_in(b[0], 0, 5000000, f"bracket {i} threshold")
+        _num_in(b[1], 0.1, 60, f"bracket {i} rate")
+        if i == 0 and b[0] != 0:
+            raise ValueError("first bracket must start at 0")
+        if i > 0 and not (b[0] > br[i - 1][0] and b[1] > br[i - 1][1]):
+            raise ValueError(f"bracket {i} must have a higher threshold and rate than bracket {i - 1}")
+    ss = t.get("ss") or {}
+    _num_in(ss.get("rate"), 1, 15, "Social Security rate")
+    _num_in(ss.get("cap"), 100000, 600000, "Social Security wage cap")
+    _num_in(ss.get("medicare"), 0.5, 5, "Medicare rate")
+    il = t.get("il") or {}
+    _num_in(il.get("rate"), 1, 15, "Illinois rate")
+    _num_in(il.get("exemption"), 0, 20000, "Illinois exemption")
+    _num_in(il.get("exemptionAgiLimit"), 50000, 2000000, "Illinois exemption income limit")
+    tips = t.get("tips")
+    if tips is not None:
+        _num_in(tips.get("max"), 0, 100000, "tips deduction maximum")
+        _num_in(tips.get("phaseStart"), 0, 10000000, "tips phase-out start")
+        _num_in(tips.get("from"), 2025, 2100, "tips first year")
+        _num_in(tips.get("through"), 2025, 2100, "tips last year")
+    _iso(t.get("checkedAt"), "checkedAt")
+    if str(t["checkedAt"]) > today().isoformat():
+        raise ValueError("checkedAt is in the future")
+    for k in TAX_SOURCES:
+        if not str(t.get(k, "")).strip():
+            raise ValueError(f"missing {k}")
+    if prev_year:
+        # inflation adjustments move these a few percent a year; anything else is probably a typo
+        pf = prev_year["fed"]
+        ratio = fed["std"] / pf["std"]
+        if not 0.95 <= ratio <= 1.15:
+            raise ValueError(f"standard deduction moved {ratio:.2f}x from the year before")
+        if [b[1] for b in br] == [b[1] for b in pf["brackets"]]:
+            for i in range(1, len(br)):
+                r = br[i][0] / pf["brackets"][i][0]
+                if not 0.95 <= r <= 1.15:
+                    raise ValueError(f"bracket {i} threshold moved {r:.2f}x from the year before")
+        r = ss["cap"] / prev_year["ss"]["cap"]
+        if not 0.99 <= r <= 1.15:
+            raise ValueError(f"Social Security cap moved {r:.2f}x from the year before")
+
+
+def build_tax_years(manual, prev_manual, warnings):
+    src = manual.get("taxYears") or {}
+    prev = (prev_manual or {}).get("taxYears") or {}
+    out = {}
+    for year in sorted(src):
+        before = out.get(str(int(year) - 1)) if year.isdigit() else None
+        try:
+            check_tax_year(year, src[year], before)
+            out[year] = src[year]
+        except Exception as e:
+            warnings.append(f"taxYears {year} is invalid ({e}); kept the last good copy")
+            if year in prev:
+                out[year] = prev[year]
+    for year, t in prev.items():
+        if year not in out and year not in src:
+            warnings.append(f"taxYears {year} disappeared from manual.json; kept the last good copy")
+            out[year] = t
+    d = today()
+    if (src or prev) and d.month >= 2 and str(d.year) not in out:
+        warnings.append(f"taxYears has no {d.year} figures yet; the scheduled check is overdue")
+    return out
+
+
+def check_fuel(m, prev=None):
+    if not isinstance(m, dict):
+        raise ValueError("missing")
+    _num_in(m.get("cents"), 10, 150, "gas tax cents")
+    _iso(m.get("date"), "date")
+    _iso(m.get("checkedAt"), "checkedAt")
+    if not str(m.get("source", "")).strip():
+        raise ValueError("missing source")
+    nxt = m.get("next")
+    if nxt is not None:
+        _num_in(nxt.get("cents"), 10, 150, "next gas tax cents")
+        _iso(nxt.get("date"), "next date")
+    if prev and abs(m["cents"] - prev.get("cents", m["cents"])) > 15:
+        raise ValueError(f"gas tax moved from {prev.get('cents')} to {m['cents']} cents; probably a typo")
+
+
+def build_fuel(manual, prev_manual, warnings):
+    m = manual.get("ilMotorFuel")
+    prev = (prev_manual or {}).get("ilMotorFuel")
+    if m is None and prev is None:
+        return None
+    try:
+        check_fuel(m, prev)
+        newest = m.get("next", {}).get("date") if m.get("next") else m["date"]
+        if (today() - date.fromisoformat(max(m["date"], newest or m["date"]))).days > 380:
+            warnings.append("ilMotorFuel is over a year old; its scheduled check is overdue")
+        return m
+    except Exception as e:
+        warnings.append(f"ilMotorFuel is invalid ({e}); kept the last good copy")
+        return prev
+
+
 def load(path):
     try:
         with open(path, encoding="utf-8") as f:
@@ -201,6 +331,13 @@ def run():
         "manual": build_manual(manual, prev.get("manual"), warnings),
         "warnings": warnings,
     }
+    tax_years = build_tax_years(manual, prev.get("manual"), warnings)
+    if tax_years:
+        feed["manual"]["taxYears"] = tax_years
+    fuel = build_fuel(manual, prev.get("manual"), warnings)
+    if fuel:
+        feed["manual"]["ilMotorFuel"] = fuel
+    feed["warnings"] = warnings
     os.makedirs(os.path.dirname(FEED), exist_ok=True)
     with open(FEED, "w", encoding="utf-8") as f:
         json.dump(feed, f, indent=1, ensure_ascii=False)

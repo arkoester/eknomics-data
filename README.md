@@ -21,6 +21,8 @@ If both are unreachable (a web filter, no Wi-Fi), each module falls back to the 
 | Madison County house price index (FHFA) | weekly check (data is yearly) | same Action |
 | 5/1 ARM rate and ARM share (Mortgage Bankers Association) | quarterly | scheduled Claude check updates `feed/manual.json` |
 | Illinois homeowners insurance average, Madison County property tax rate | yearly | scheduled Claude check updates `feed/manual.json` |
+| Ch 12 tax figures (`taxYears`): federal brackets and standard deduction, Social Security wage cap, Illinois rate and exemption, tips deduction | yearly, a new block for each tax year (IRS and SSA publish in October; Illinois in December or January) | scheduled Claude check adds the block to `feed/manual.json` |
+| Ch 12 Illinois gas tax (`ilMotorFuel`) | each July 1 (and whenever the state pauses or restarts an increase) | scheduled Claude check updates `feed/manual.json` |
 
 Every number is checked against a sane range before it is published. If a download fails or a number looks wrong, the Action keeps last week's good numbers and opens an issue titled **"Data refresh needs attention"** (you get an email). Students are not affected while it is open.
 
@@ -51,9 +53,20 @@ Get a free FRED API key at fredaccount.stlouisfed.org, then add it here under **
     "madisonMedianDaysOnMarket": { "latest": {...} },
     "madisonHPI": { "annual": {"2021": 153.1, ...} }
   },
-  "manual": { "arm51": {...}, "insuranceIL200k": {...}, "taxRateMadison": {...} },
+  "manual": { "arm51": {...}, "insuranceIL200k": {...}, "taxRateMadison": {...},
+              "taxYears": { "2026": { "checkedAt": "...", "fed": { "std": 16100, "brackets": [[0, 10], [12400, 12], ...] },
+                                      "ss": {...}, "il": {...}, "tips": {...}, "fedSource": "...", "ssSource": "...", "ilSource": "..." } },
+              "ilMotorFuel": { "cents": 48.3, "date": "2026-07-01", "source": "...", "checkedAt": "...", "next": { "cents": ..., "date": "..." } } },
   "warnings": []
 }
 ```
 
 New series are added as each eKnomics module is updated to read live numbers. Modules ignore series they don't use.
+
+## Ch 12 tax figures: how a new year gets added
+
+Each tax year is one block under `taxYears`, single-filer figures only. The Ch 12 module ("Who Pays?") uses the block for the current calendar year, or the latest year before it, and locks that year for each student once they start, so answers never shift mid-attempt.
+
+The script checks every block before publishing it: brackets must rise in both threshold and rate, every number must be in a sane range, the sources must be filled in, and a new year may move the standard deduction, bracket thresholds and wage cap by only a few percent from the year before (a typo like 161000 for 16100 is refused). A block that fails keeps last week's good copy and opens the usual "Data refresh needs attention" issue. From February on, a missing block for the current year also opens the issue.
+
+`ilMotorFuel` holds the current Illinois gas tax per gallon. To schedule a change in advance, add `"next": {"cents": ..., "date": "YYYY-MM-DD"}`; modules switch on that date.

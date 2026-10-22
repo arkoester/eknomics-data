@@ -142,5 +142,93 @@ class RunTests(Base):
         self.assertRegex(self.feed()["checkedAt"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
+def tax_year(std=16100, scale=1.0, cap=184500, checked="2026-09-30"):
+    br = [[0, 10], [12400, 12], [50400, 22], [105700, 24], [201775, 32], [256225, 35], [640600, 37]]
+    return {"checkedAt": checked,
+            "fed": {"std": std, "brackets": [[round(b[0] * scale), b[1]] for b in br]},
+            "fedSource": "IRS", "ss": {"rate": 6.2, "cap": cap, "medicare": 1.45}, "ssSource": "SSA",
+            "il": {"rate": 4.95, "exemption": 2925, "exemptionAgiLimit": 250000}, "ilSource": "Illinois Comptroller",
+            "tips": {"max": 25000, "phaseStart": 150000, "from": 2025, "through": 2028}}
+
+
+FUEL = {"cents": 48.3, "date": "2026-07-01", "to": "2026-12-31", "source": "IDOR FY 2026-23", "checkedAt": "2026-09-30"}
+
+
+class TaxYearTests(Base):
+    def setUp(self):
+        super().setUp()
+        with open(uf.MANUAL) as f:
+            self.manual = json.load(f)
+        self.manual["taxYears"] = {"2026": tax_year()}
+        self.manual["ilMotorFuel"] = dict(FUEL)
+        self.write_manual(self.manual)
+
+    def test_pass_through(self):
+        self.assertEqual(uf.run(), 0)
+        m = self.feed()["manual"]
+        self.assertEqual(m["taxYears"]["2026"]["fed"]["std"], 16100)
+        self.assertEqual(m["taxYears"]["2026"]["fed"]["brackets"][2], [50400, 22])
+        self.assertEqual(m["ilMotorFuel"]["cents"], 48.3)
+        self.assertEqual(m["arm51"]["value"], 6.10)
+
+    def test_bad_brackets_keep_last_good(self):
+        uf.run()
+        bad = tax_year()
+        bad["fed"]["brackets"][3] = [40000, 24]
+        self.manual["taxYears"]["2026"] = bad
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 1)
+        f = self.feed()
+        self.assertEqual(f["manual"]["taxYears"]["2026"]["fed"]["brackets"][3], [105700, 24])
+        self.assertTrue(any("taxYears 2026" in w for w in f["warnings"]))
+
+    def test_next_year_accepted(self):
+        self.manual["taxYears"]["2027"] = tax_year(std=16600, scale=1.032, cap=192300)
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 0)
+        self.assertEqual(sorted(self.feed()["manual"]["taxYears"]), ["2026", "2027"])
+
+    def test_typo_next_year_rejected(self):
+        self.manual["taxYears"]["2027"] = tax_year(std=166000, scale=1.032, cap=192300)
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 1)
+        f = self.feed()
+        self.assertNotIn("2027", f["manual"]["taxYears"])
+        self.assertTrue(any("taxYears 2027" in w and "standard deduction" in w for w in f["warnings"]))
+
+    def test_missing_current_year_warns(self):
+        uf.today = lambda: date(2027, 2, 15)
+        self.assertEqual(uf.run(), 1)
+        self.assertTrue(any("no 2027 figures" in w for w in self.feed()["warnings"]))
+
+    def test_missing_source_rejected(self):
+        bad = tax_year()
+        bad["fedSource"] = ""
+        self.manual["taxYears"]["2026"] = bad
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 1)
+        self.assertNotIn("2026", self.feed()["manual"].get("taxYears", {}))
+
+    def test_bad_fuel_keeps_last_good(self):
+        uf.run()
+        self.manual["ilMotorFuel"] = dict(FUEL, cents=483)
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["manual"]["ilMotorFuel"]["cents"], 48.3)
+
+    def test_fuel_typo_jump_rejected(self):
+        uf.run()
+        self.manual["ilMotorFuel"] = dict(FUEL, cents=68.3)
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["manual"]["ilMotorFuel"]["cents"], 48.3)
+
+    def test_without_tax_blocks_no_warning(self):
+        del self.manual["taxYears"], self.manual["ilMotorFuel"]
+        self.write_manual(self.manual)
+        self.assertEqual(uf.run(), 0)
+        self.assertNotIn("taxYears", self.feed()["manual"])
+
+
 if __name__ == "__main__":
     unittest.main()
