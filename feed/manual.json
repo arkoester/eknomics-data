@@ -68,8 +68,8 @@
     "cap": 184500,
     "medicare": 1.45
    },
-   "ssSource": "Social Security Administration 2026 wage base, as reported by the Journal of Accountancy (October 14, 2026)",
-   "ssUrl": "https://www.journalofaccountancy.com/news/2026/oct/social-security-wage-base-and-cola-announced-for-2027/",
+   "ssSource": "Social Security Administration, 2026 Cost-of-Living Adjustment Fact Sheet: maximum taxable earnings $184,500",
+   "ssUrl": "https://www.ssa.gov/news/en/cola/factsheets/2026.html",
    "il": {
     "rate": 4.95,
     "exemption": 2925,
