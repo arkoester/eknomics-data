@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-26T20:34:45Z",
+ "checkedAt": "2026-10-26T20:49:57Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -409,6 +409,23 @@
    "saving": 1056.414,
    "savingRate": 4.408,
    "ndp": 27204.27
+  }
+ },
+ "madisonIncome": {
+  "year": "2024",
+  "label": "Personal income by type, Madison County, Illinois",
+  "unit": "thousands of dollars (pop: people)",
+  "source": "U.S. Bureau of Economic Analysis, CAINC4",
+  "values": {
+   "pi": 16486997.0,
+   "pop": 263017.0,
+   "earningsWork": 9254052.0,
+   "earningsRes": 10263316.0,
+   "dir": 2471978.0,
+   "transfers": 3751703.0,
+   "wages": 6716585.0,
+   "supplements": 1669126.0,
+   "proprietors": 868341.0
   }
  }
 }
