@@ -182,11 +182,13 @@ class IncomeSideTests(Base):
         self.assertAlmostEqual(b["values"]["gdi"], 32486.066 - 240.924, places=3)
         self.assertEqual(set(b["values"]), set(uf.INCOME))
         self.assertNotIn("gdpAhead", b)
-        t = b["textbook"]
+        t = b["chain"]
+        self.assertAlmostEqual(t["gnp"], t["gdp"] + t["netForeignIncome"], places=2)
+        self.assertAlmostEqual(t["nnp"], t["gnp"] - t["depreciation"], places=2)
+        self.assertAlmostEqual(t["ni"], t["nnp"] - t["statDisc"], places=2)
+        self.assertAlmostEqual(t["pi"], t["ni"] - t["indirectTaxes"] - t["corpTaxes"] - t["retained"]
+                               - t["socialSecurityTaxes"] + t["transfers"] + t["netInterest"], places=2)
         self.assertAlmostEqual(t["ndp"], t["gdp"] - t["depreciation"], places=2)
-        self.assertAlmostEqual(t["ni"], t["ndp"] - t["indirectTaxes"] + t["netForeignIncome"] - t["statDisc"], places=2)
-        self.assertAlmostEqual(t["pi"], t["ni"] - t["corpTaxes"] - t["retained"] - t["socialSecurityTaxes"]
-                               + t["transfers"] + t["netInterest"], places=2)
         self.assertAlmostEqual(t["saving"], 1200.0, places=2)
         self.assertGreater(t["netInterest"], 0)
 

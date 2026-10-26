@@ -326,7 +326,7 @@ INCOME = {
     "pi": "PINCOME",
     # NIPA Table 2.1: personal income and its disposition
     "personalTaxes": "W055RC1Q027SBEA", "outlays": "A068RC1Q027SBEA",
-    # corporate profits split (NIPA Table 1.10 lines 16 and 19), for the textbook's NI to PI step
+    # corporate profits split (NIPA Table 1.10 lines 16 and 19), for the NI to PI step
     "corpTaxes": "A054RC1Q027SBEA", "retained": "W274RC1Q027SBEA",
     # population (thousands), for per-person figures
     "pop": "B230RC0Q173SBEA",
@@ -356,27 +356,33 @@ def income_identities(v):
     ]
 
 
-def textbook_chain(v):
-    """The Ch 23 textbook's chain (its Table 5.6), built from BEA lines so every step ties out exactly.
-    The textbook's national income leaves out indirect business taxes; BEA's NI line includes them."""
-    b = {"gdp": v["gdp"], "depreciation": v["cfc"]}
-    b["ndp"] = v["gdp"] - v["cfc"]
-    b["indirectTaxes"] = v["prodTaxesLessSubs"]
+def todays_chain(v):
+    """The chain as BEA builds it today (NIPA Table 1.7.5), in the order the Ch 23 module teaches it.
+    GDP + net foreign factor income = GNP; GNP - depreciation = NNP; NNP - statistical discrepancy = NI.
+    NI INCLUDES indirect business taxes (BEA, since 2003); they leave on the way from NI to PI.
+    NDP (GDP - depreciation) is kept as a side figure because the class chapter's older chain uses it."""
+    b = {"gdp": v["gdp"]}
     b["netForeignIncome"] = v["incomeFromROW"] - v["incomeToROW"]
+    b["gnp"] = v["gnp"]
+    b["depreciation"] = v["cfc"]
+    b["nnp"] = v["nnp"]
     b["statDisc"] = v["statDisc"]
-    b["ni"] = b["ndp"] - b["indirectTaxes"] + b["netForeignIncome"] - b["statDisc"]
+    b["ni"] = v["ni"]
+    b["indirectTaxes"] = v["prodTaxesLessSubs"]
     b["corpTaxes"] = v["corpTaxes"]
     b["retained"] = v["retained"]
     b["socialSecurityTaxes"] = v["socialInsurance"]
     b["transfers"] = v["transfers"]
     b["pi"] = v["pi"]
-    # net interest plus the small BEA lines the textbook skips: whatever closes NI to PI exactly
-    b["netInterest"] = b["pi"] - (b["ni"] - b["corpTaxes"] - b["retained"] - b["socialSecurityTaxes"] + b["transfers"])
+    # net interest plus the few small BEA lines the class chapter skips: whatever closes NI to PI exactly
+    b["netInterest"] = b["pi"] - (b["ni"] - b["indirectTaxes"] - b["corpTaxes"] - b["retained"]
+                                  - b["socialSecurityTaxes"] + b["transfers"])
     b["personalTaxes"] = v["personalTaxes"]
     b["di"] = v["pi"] - v["personalTaxes"]
     b["spending"] = v["outlays"]
     b["saving"] = b["di"] - v["outlays"]
     b["savingRate"] = 100 * b["saving"] / b["di"]
+    b["ndp"] = v["gdp"] - v["cfc"]
     return b
 
 
@@ -410,9 +416,9 @@ def build_income(fetched, prev_block, warnings):
         for name, left, right in income_identities(v):
             if abs(left - right) > INCOME_TOL:
                 raise ValueError(f"{name} is off by {left - right:.1f} billion")
-        book = textbook_chain(v)
+        book = todays_chain(v)
         if not 0 <= book["netInterest"] <= 0.15 * book["pi"]:
-            raise ValueError(f"textbook net interest {book['netInterest']:.1f} looks wrong")
+            raise ValueError(f"net interest {book['netInterest']:.1f} looks wrong")
         if not -5 <= book["savingRate"] <= 40:
             raise ValueError(f"saving rate {book['savingRate']:.1f} looks wrong")
         if prev_block and prev_block.get("quarter") and q < prev_block["quarter"]:
@@ -425,7 +431,7 @@ def build_income(fetched, prev_block, warnings):
             "source": "U.S. Bureau of Economic Analysis (via FRED)",
             "fred": dict(INCOME),
             "values": {k: round(x, 3) for k, x in v.items()},
-            "textbook": {k: round(x, 3) for k, x in book.items()},
+            "chain": {k: round(x, 3) for k, x in book.items()},
         }
         if gdp[-1][0] > q:
             block["gdpAhead"] = {"date": gdp[-1][0], "value": round(gdp[-1][1], 3)}
