@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-23T18:26:43Z",
+ "checkedAt": "2026-10-26T15:35:51Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -316,5 +316,8 @@
    "checkedAt": "2026-10-22"
   }
  },
- "warnings": []
+ "warnings": [
+  "incomeSide dpi (A067RC1Q027SBEA): download failed after 3 tries: HTTP Error 404: Not Found",
+  "incomeSide saving (A071RC1Q027SBEA): download failed after 3 tries: HTTP Error 404: Not Found"
+ ]
 }
