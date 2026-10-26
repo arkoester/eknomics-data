@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-26T15:37:29Z",
+ "checkedAt": "2026-10-26T20:34:45Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -388,14 +388,15 @@
    "retained": 1302.147,
    "pop": 342749.0
   },
-  "textbook": {
+  "chain": {
    "gdp": 32563.03,
-   "depreciation": 5358.76,
-   "ndp": 27204.27,
-   "indirectTaxes": 2193.84,
    "netForeignIncome": -3.675,
+   "gnp": 32559.355,
+   "depreciation": 5358.76,
+   "nnp": 27200.595,
    "statDisc": -189.498,
-   "ni": 25196.253,
+   "ni": 27390.093,
+   "indirectTaxes": 2193.84,
    "corpTaxes": 832.019,
    "retained": 1302.147,
    "socialSecurityTaxes": 2085.967,
@@ -406,7 +407,8 @@
    "di": 23965.585,
    "spending": 22909.171,
    "saving": 1056.414,
-   "savingRate": 4.408
+   "savingRate": 4.408,
+   "ndp": 27204.27
   }
  }
 }
