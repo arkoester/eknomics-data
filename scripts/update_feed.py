@@ -15,6 +15,9 @@ Runs weekly in GitHub Actions (see .github/workflows/weekly.yml). Standard libra
 - Passes through the yearly tax figures for Ch 12 "Who Pays?" (taxYears, one
   block per tax year, and ilMotorFuel) after checking each one; a block that
   fails a check is replaced by last week's good copy.
+- Builds incomeSide for Ch 23 "Follow the Dollar": the GDP-to-saving lines of
+  NIPA Tables 1.7.5, 1.10 and 2.1, all from one quarter, checked against every
+  accounting identity before publishing.
 """
 import csv
 import io
@@ -303,6 +306,106 @@ def build_fuel(manual, prev_manual, warnings):
         return prev
 
 
+# ---------- Ch 23 "Follow the Dollar": the income side of GDP (NIPA, quarterly) ----------
+# Billions of dollars, seasonally adjusted annual rates, except pop (thousands of people).
+# Every line is published for ONE quarter: the latest quarter that has all of them.
+# GDP's advance estimate comes out a month before GDI, so GDP alone can run a quarter ahead;
+# that newer GDP is reported separately as gdpAhead and never mixed into the block.
+INCOME = {
+    # NIPA Table 1.7.5: GDP to GNP, NNP and national income
+    "gdp": "GDP", "incomeFromROW": "B645RC1Q027SBEA", "incomeToROW": "A655RC1Q027SBEA",
+    "gnp": "GNP", "cfc": "COFC", "nnp": "A027RC1Q027SBEA", "statDisc": "A030RC1Q027SBEA",
+    "ni": "NICUR", "gdi": "GDI",
+    # NIPA Table 1.10: gross domestic income by type of income
+    "comp": "GDICOMP", "prodTaxes": "GDITAXES", "subsidies": "GDISUBS", "nos": "GDINOS",
+    "netInterestDom": "W272RC1Q027SBEA", "busTransfers": "B029RC1Q027SBEA", "proprietors": "PROPINC",
+    "rental": "RENTIN", "corpProfitsDom": "A445RC1Q027SBEA", "govEntSurplus": "A108RC1Q027SBEA",
+    # NIPA Table 1.7.5 lines 17 to 25: national income to personal income
+    "corpProfits": "CPROFIT", "prodTaxesLessSubs": "W254RC1Q027SBEA", "socialInsurance": "A061RC1Q027SBEA",
+    "netInterestMisc": "W255RC1Q027SBEA", "assetIncome": "W210RC1Q027SBEA", "transfers": "A577RC1Q027SBEA",
+    "pi": "PINCOME",
+    # NIPA Table 2.1: personal income and its disposition
+    "personalTaxes": "W055RC1Q027SBEA", "dpi": "A067RC1Q027SBEA", "outlays": "A068RC1Q027SBEA",
+    "saving": "A071RC1Q027SBEA",
+    # population (thousands), for per-person figures
+    "pop": "B230RC0Q173SBEA",
+}
+INCOME_SIGNED = {"statDisc", "govEntSurplus", "netInterestMisc", "netInterestDom"}  # can be negative
+INCOME_POP_RANGE = (250000, 450000)
+INCOME_RANGE = (50, 200000)
+INCOME_TOL = 3.0  # billions; BEA rounds each line to the million, so identities hold within a few tenths
+
+
+def income_identities(v):
+    """(name, left, right) for every accounting identity the block must satisfy."""
+    return [
+        ("GNP = GDP + income from abroad - income paid abroad",
+         v["gnp"], v["gdp"] + v["incomeFromROW"] - v["incomeToROW"]),
+        ("NNP = GNP - depreciation", v["nnp"], v["gnp"] - v["cfc"]),
+        ("national income = NNP - statistical discrepancy", v["ni"], v["nnp"] - v["statDisc"]),
+        ("GDI = GDP - statistical discrepancy", v["gdi"], v["gdp"] - v["statDisc"]),
+        ("GDI = compensation + taxes - subsidies + net operating surplus + depreciation",
+         v["gdi"], v["comp"] + v["prodTaxes"] - v["subsidies"] + v["nos"] + v["cfc"]),
+        ("net operating surplus = interest + transfers + proprietors + rent + profits + gov enterprises",
+         v["nos"], v["netInterestDom"] + v["busTransfers"] + v["proprietors"] + v["rental"]
+         + v["corpProfitsDom"] + v["govEntSurplus"]),
+        ("personal income = national income - kept or taxed + paid to households", v["pi"],
+         v["ni"] - v["corpProfits"] - v["prodTaxesLessSubs"] - v["socialInsurance"] - v["netInterestMisc"]
+         - v["busTransfers"] - v["govEntSurplus"] + v["assetIncome"] + v["transfers"]),
+        ("disposable income = personal income - personal taxes", v["dpi"], v["pi"] - v["personalTaxes"]),
+        ("personal saving = disposable income - outlays", v["saving"], v["dpi"] - v["outlays"]),
+    ]
+
+
+def build_income(fetched, prev_block, warnings):
+    """fetched: {key: [(date, float)]}. Returns the incomeSide block, or last week's on any failure."""
+    try:
+        missing = [k for k in INCOME if k not in fetched]
+        if missing:
+            raise ValueError("no data for " + ", ".join(missing))
+        dates = None
+        for k in INCOME:
+            ds = {d for d, _ in fetched[k]}
+            dates = ds if dates is None else dates & ds
+        if not dates:
+            raise ValueError("no quarter has every line")
+        q = max(dates)
+        if q > today().isoformat():
+            raise ValueError(f"quarter {q} is in the future")
+        if (today() - date.fromisoformat(q)).days > 400:
+            raise ValueError(f"newest complete quarter {q} is over a year old")
+        v = {k: dict(fetched[k])[q] for k in INCOME}
+        for k, x in v.items():
+            if k == "pop":
+                lo, hi = INCOME_POP_RANGE
+            elif k in INCOME_SIGNED:
+                lo, hi = -INCOME_RANGE[1], INCOME_RANGE[1]
+            else:
+                lo, hi = INCOME_RANGE
+            if not lo <= x <= hi:
+                raise ValueError(f"{k} = {x} outside {lo} to {hi}")
+        for name, left, right in income_identities(v):
+            if abs(left - right) > INCOME_TOL:
+                raise ValueError(f"{name} is off by {left - right:.1f} billion")
+        if prev_block and prev_block.get("quarter") and q < prev_block["quarter"]:
+            raise ValueError(f"quarter {q} is older than last week's {prev_block['quarter']}")
+        gdp = fetched["gdp"]
+        block = {
+            "quarter": q,
+            "label": "US income side of GDP, NIPA Tables 1.7.5, 1.10 and 2.1",
+            "unit": "billions of dollars, seasonally adjusted annual rate (pop: thousands)",
+            "source": "U.S. Bureau of Economic Analysis (via FRED)",
+            "fred": dict(INCOME),
+            "values": {k: round(x, 3) for k, x in v.items()},
+        }
+        if gdp[-1][0] > q:
+            block["gdpAhead"] = {"date": gdp[-1][0], "value": round(gdp[-1][1], 3)}
+        return block
+    except Exception as e:
+        warnings.append(f"incomeSide: {e}; kept last week's good copy")
+        return prev_block
+
+
 def load(path):
     try:
         with open(path, encoding="utf-8") as f:
@@ -337,6 +440,16 @@ def run():
     fuel = build_fuel(manual, prev.get("manual"), warnings)
     if fuel:
         feed["manual"]["ilMotorFuel"] = fuel
+    fetched = {}
+    for key, sid in INCOME.items():
+        try:
+            fetched[key] = clean(fetch_fred(sid))
+        except Exception as e:
+            warnings.append(f"incomeSide {key} ({sid}): {e}")
+    income = build_income(fetched, prev.get("incomeSide"), warnings) if len(fetched) == len(INCOME) \
+        else (prev.get("incomeSide") or None)
+    if income:
+        feed["incomeSide"] = income
     feed["warnings"] = warnings
     os.makedirs(os.path.dirname(FEED), exist_ok=True)
     with open(FEED, "w", encoding="utf-8") as f:
@@ -344,6 +457,9 @@ def run():
         f.write("\n")
     for key, s in series.items():
         print(f"{key:28s} latest {s['latest']['date']} = {s['latest']['value']}")
+    if feed.get("incomeSide"):
+        b = feed["incomeSide"]
+        print(f"{'incomeSide':28s} quarter {b['quarter']}" + (f" (GDP ahead: {b['gdpAhead']['date']})" if b.get("gdpAhead") else ""))
     for w in warnings:
         print("WARNING:", w)
     return 1 if warnings else 0

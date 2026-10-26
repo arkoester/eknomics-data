@@ -20,6 +20,37 @@ def monthly(first_year, last_year, value):
     return [(f"{y}-{m:02d}-01", str(value)) for y in range(first_year, last_year + 1) for m in range(1, 13)]
 
 
+def income_quarter(scale=1.0):
+    """One quarter of consistent NIPA lines (billions), keyed by our feed keys."""
+    v = {"gdp": 32486.066 * scale, "incomeFromROW": 1711.539, "incomeToROW": 1634.740, "cfc": 5379.616,
+         "statDisc": 240.924, "comp": 16251.872 * scale, "prodTaxes": 2371.204, "subsidies": 128.363,
+         "netInterestDom": 500.0, "busTransfers": 268.914, "proprietors": 2162.796, "rental": 1150.156,
+         "govEntSurplus": -65.009, "corpProfits": 4827.390, "prodTaxesLessSubs": 2244.065,
+         "socialInsurance": 2099.039, "netInterestMisc": 136.416, "assetIncome": 4304.848,
+         "transfers": 5169.332, "personalTaxes": 3500.0, "pop": 343000.0}
+    v["gnp"] = v["gdp"] + v["incomeFromROW"] - v["incomeToROW"]
+    v["nnp"] = v["gnp"] - v["cfc"]
+    v["ni"] = v["nnp"] - v["statDisc"]
+    v["gdi"] = v["gdp"] - v["statDisc"]
+    v["nos"] = v["gdi"] - v["comp"] - v["prodTaxes"] + v["subsidies"] - v["cfc"]
+    v["corpProfitsDom"] = v["nos"] - (v["netInterestDom"] + v["busTransfers"] + v["proprietors"]
+                                      + v["rental"] + v["govEntSurplus"])
+    v["pi"] = (v["ni"] - v["corpProfits"] - v["prodTaxesLessSubs"] - v["socialInsurance"] - v["netInterestMisc"]
+               - v["busTransfers"] - v["govEntSurplus"] + v["assetIncome"] + v["transfers"])
+    v["dpi"] = v["pi"] - v["personalTaxes"]
+    v["outlays"] = v["dpi"] - 1200.0
+    v["saving"] = v["dpi"] - v["outlays"]
+    return v
+
+
+def income_data(quarters=(("2026-01-01", 0.99), ("2026-04-01", 1.0))):
+    out = {}
+    for d, s in quarters:
+        for k, x in income_quarter(s).items():
+            out.setdefault(uf.INCOME[k], []).append((d, f"{x:.3f}"))
+    return out
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -36,6 +67,7 @@ class Base(unittest.TestCase):
             "MEDDAYONMAR17119": monthly(2025, 2025, 40) + [("2026-07-01", "36"), ("2026-08-01", ".")],
             "ATNHPIUS17119A": [(f"{y}-01-01", str(100 + y - 2000)) for y in range(2010, 2026)],
         }
+        self.data.update(income_data())
         uf.fetch_fred = lambda sid: list(self.data[sid])
         self.write_manual({
             "arm51": {"value": 6.10, "date": "2026-09-18", "source": "MBA", "armShare": 9.8},
@@ -140,6 +172,56 @@ class RunTests(Base):
     def test_checked_at_changes_every_run(self):
         uf.run()
         self.assertRegex(self.feed()["checkedAt"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+class IncomeSideTests(Base):
+    def test_good_block(self):
+        self.assertEqual(uf.run(), 0)
+        b = self.feed()["incomeSide"]
+        self.assertEqual(b["quarter"], "2026-04-01")
+        self.assertAlmostEqual(b["values"]["gdp"], 32486.066, places=3)
+        self.assertAlmostEqual(b["values"]["gdi"], 32486.066 - 240.924, places=3)
+        self.assertEqual(set(b["values"]), set(uf.INCOME))
+        self.assertNotIn("gdpAhead", b)
+
+    def test_gdp_ahead_stays_out_of_the_block(self):
+        self.data["GDP"] = self.data["GDP"] + [("2026-07-01", "33000.000")]
+        self.assertEqual(uf.run(), 0)
+        b = self.feed()["incomeSide"]
+        self.assertEqual(b["quarter"], "2026-04-01")
+        self.assertAlmostEqual(b["values"]["gdp"], 32486.066, places=3)
+        self.assertEqual(b["gdpAhead"], {"date": "2026-07-01", "value": 33000.0})
+
+    def test_broken_identity_keeps_last_good(self):
+        uf.run()
+        good = self.feed()["incomeSide"]
+        self.data["GDI"] = [(d, f"{float(x) + 50:.3f}") for d, x in self.data["GDI"]]
+        self.assertEqual(uf.run(), 1)
+        f = self.feed()
+        self.assertEqual(f["incomeSide"], good)
+        self.assertTrue(any("incomeSide" in w and "GDI = GDP" in w for w in f["warnings"]))
+
+    def test_one_line_down_keeps_last_good(self):
+        uf.run()
+        good = self.feed()["incomeSide"]
+
+        def boom(sid):
+            if sid == "PINCOME":
+                raise RuntimeError("network down")
+            return list(self.data[sid])
+        uf.fetch_fred = boom
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["incomeSide"], good)
+
+    def test_lines_on_different_quarters_use_the_common_one(self):
+        self.data["PINCOME"] = self.data["PINCOME"][:1]
+        self.assertEqual(uf.run(), 0)
+        self.assertEqual(self.feed()["incomeSide"]["quarter"], "2026-01-01")
+
+    def test_stale_quarter_rejected(self):
+        uf.today = lambda: date(2027, 9, 1)
+        uf.run()
+        self.assertTrue(any("incomeSide" in w and "over a year old" in w for w in self.feed()["warnings"]))
 
 
 def tax_year(std=16100, scale=1.0, cap=184500, checked="2026-09-30"):
