@@ -441,6 +441,92 @@ def build_income(fetched, prev_block, warnings):
         return prev_block
 
 
+# ---------- Ch 23 "Follow the Dollar": Madison County, IL personal income by type (BEA CAINC4, yearly) ----------
+# BEA's public bulk download (no key). Values are thousands of dollars; population is people.
+CAINC4_URL = "https://apps.bea.gov/regional/zip/CAINC4.zip"
+MADISON_FIPS = "17119"
+CAINC4_LINES = {"10": "pi", "20": "pop", "35": "earningsWork", "45": "earningsRes", "46": "dir",
+                "47": "transfers", "50": "wages", "60": "supplements", "70": "proprietors"}
+
+
+def _get_bytes(url, tries=3):
+    last = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return r.read()
+        except Exception as e:
+            last = e
+            time.sleep(5 * (i + 1))
+    raise RuntimeError(f"download failed after {tries} tries: {last}")
+
+
+def parse_cainc4(rows, fips=MADISON_FIPS):
+    """rows: csv.reader rows of a CAINC4 state file. Returns {year: {key: value}} for one county."""
+    header = None
+    out = {}
+    for r in rows:
+        if header is None:
+            if r and r[0].strip() == "GeoFIPS":
+                header = [h.strip() for h in r]
+            continue
+        if len(r) < len(header) or r[0].strip().strip('"').strip() != fips:
+            continue
+        rec = dict(zip(header, r))
+        key = CAINC4_LINES.get(str(rec.get("LineCode", "")).strip())
+        if not key:
+            continue
+        for col, val in rec.items():
+            if col.isdigit() and len(col) == 4:
+                v = str(val).strip()
+                try:
+                    out.setdefault(col, {})[key] = float(v)
+                except ValueError:
+                    pass  # "(D)" or "(NA)": not disclosed
+    if header is None:
+        raise ValueError("no GeoFIPS header found")
+    return out
+
+
+def build_madison(years, prev_block, warnings):
+    try:
+        full = [y for y, v in years.items() if all(k in v for k in CAINC4_LINES.values())]
+        if not full:
+            raise ValueError("no year has every line")
+        y = max(full)
+        v = years[y]
+        if not 2015 <= int(y) <= today().year:
+            raise ValueError(f"year {y} out of range")
+        if not 100000 <= v["pop"] <= 1000000:
+            raise ValueError(f"population {v['pop']} looks wrong")
+        if not 5e6 <= v["pi"] <= 1e8:
+            raise ValueError(f"personal income {v['pi']} looks wrong")
+        tol = max(2000.0, 0.0005 * v["pi"])  # thousands of dollars; BEA rounds each line
+        if abs(v["earningsWork"] - (v["wages"] + v["supplements"] + v["proprietors"])) > tol:
+            raise ValueError("wages + supplements + proprietors does not match earnings by place of work")
+        if abs(v["pi"] - (v["earningsRes"] + v["dir"] + v["transfers"])) > tol:
+            raise ValueError("earnings + dividends/interest/rent + transfers does not match personal income")
+        if prev_block and prev_block.get("year") and y < prev_block["year"]:
+            raise ValueError(f"year {y} is older than last week's {prev_block['year']}")
+        return {"year": y, "label": "Personal income by type, Madison County, Illinois",
+                "unit": "thousands of dollars (pop: people)", "source": "U.S. Bureau of Economic Analysis, CAINC4",
+                "values": {k: v[k] for k in CAINC4_LINES.values()}}
+    except Exception as e:
+        warnings.append(f"madisonIncome: {e}; kept last week's good copy")
+        return prev_block
+
+
+def fetch_madison():
+    import zipfile
+    z = zipfile.ZipFile(io.BytesIO(_get_bytes(CAINC4_URL)))
+    name = next((n for n in z.namelist() if n.upper().startswith("CAINC4_IL_") and n.lower().endswith(".csv")), None)
+    if not name:
+        raise ValueError("no Illinois file in CAINC4.zip")
+    text = z.read(name).decode("latin-1")
+    return parse_cainc4(csv.reader(io.StringIO(text)))
+
+
 def load(path):
     try:
         with open(path, encoding="utf-8") as f:
@@ -485,6 +571,13 @@ def run():
         else (prev.get("incomeSide") or None)
     if income:
         feed["incomeSide"] = income
+    try:
+        madison = build_madison(fetch_madison(), prev.get("madisonIncome"), warnings)
+    except Exception as e:
+        warnings.append(f"madisonIncome: {e}; kept last week's good copy")
+        madison = prev.get("madisonIncome")
+    if madison:
+        feed["madisonIncome"] = madison
     feed["warnings"] = warnings
     os.makedirs(os.path.dirname(FEED), exist_ok=True)
     with open(FEED, "w", encoding="utf-8") as f:
@@ -495,6 +588,8 @@ def run():
     if feed.get("incomeSide"):
         b = feed["incomeSide"]
         print(f"{'incomeSide':28s} quarter {b['quarter']}" + (f" (GDP ahead: {b['gdpAhead']['date']})" if b.get("gdpAhead") else ""))
+    if feed.get("madisonIncome"):
+        print(f"{'madisonIncome':28s} year {feed['madisonIncome']['year']}")
     for w in warnings:
         print("WARNING:", w)
     return 1 if warnings else 0

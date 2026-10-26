@@ -1,4 +1,6 @@
 """Offline tests for update_feed.py. Run: python -m unittest discover -s scripts -p "test_*.py" -v"""
+import csv
+import io
 import json
 import os
 import shutil
@@ -50,6 +52,24 @@ def income_data(quarters=(("2026-01-01", 0.99), ("2026-04-01", 1.0))):
     return out
 
 
+def cainc4_csv(year_vals):
+    """A tiny CAINC4-shaped CSV: Madison County plus one other county, two years."""
+    lines = ['"GeoFIPS","GeoName","Region","TableName","LineCode","IndustryClassification","Description","Unit","2023","2024"']
+    for code, (a, b) in year_vals.items():
+        lines.append(f'" 17119","Madison, IL",3,CAINC4,{code},...,"x","Thousands of dollars",{a},{b}')
+        lines.append(f'" 17001","Adams, IL",3,CAINC4,{code},...,"x","Thousands of dollars",1,2')
+    lines.append('"Note: test"')
+    return "\n".join(lines) + "\n"
+
+
+MAD = {"50": (9000000, 9400000), "60": (2000000, 2100000), "70": (900000, 950000),
+       "46": (3500000, 3600000), "47": (4000000, 4100000), "20": (264000, 263500)}
+MAD["35"] = tuple(MAD["50"][i] + MAD["60"][i] + MAD["70"][i] for i in range(2))
+MAD["45"] = tuple(MAD["35"][i] - 1200000 + 600000 for i in range(2))
+MAD["10"] = tuple(MAD["45"][i] + MAD["46"][i] + MAD["47"][i] for i in range(2))
+CAINC4_CSV = cainc4_csv(MAD)
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -68,6 +88,8 @@ class Base(unittest.TestCase):
         }
         self.data.update(income_data())
         uf.fetch_fred = lambda sid: list(self.data[sid])
+        self.orig_madison = uf.fetch_madison
+        uf.fetch_madison = lambda: uf.parse_cainc4(csv.reader(io.StringIO(CAINC4_CSV)))
         self.write_manual({
             "arm51": {"value": 6.10, "date": "2026-09-18", "source": "MBA", "armShare": 9.8},
             "insuranceIL200k": {"value": 2039, "date": "2026-08-04", "source": "Insure.com"},
@@ -76,6 +98,7 @@ class Base(unittest.TestCase):
 
     def tearDown(self):
         uf.FEED, uf.MANUAL, uf.fetch_fred, uf.today = self.orig
+        uf.fetch_madison = self.orig_madison
         shutil.rmtree(self.tmp)
 
     def write_manual(self, m):
@@ -171,6 +194,39 @@ class RunTests(Base):
     def test_checked_at_changes_every_run(self):
         uf.run()
         self.assertRegex(self.feed()["checkedAt"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+class MadisonTests(Base):
+    def test_madison_block(self):
+        self.assertEqual(uf.run(), 0)
+        m = self.feed()["madisonIncome"]
+        self.assertEqual(m["year"], "2024")
+        self.assertEqual(m["values"]["wages"], 9400000)
+        self.assertEqual(m["values"]["pi"], MAD["10"][1])
+
+    def test_madison_broken_sum_keeps_last_good(self):
+        uf.run()
+        good = self.feed()["madisonIncome"]
+        bad = dict(MAD); bad["47"] = (4000000, 9100000)
+        uf.fetch_madison = lambda: uf.parse_cainc4(csv.reader(io.StringIO(cainc4_csv(bad))))
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["madisonIncome"], good)
+
+    def test_madison_suppressed_year_uses_last_full(self):
+        bad = dict(MAD); bad["70"] = (900000, "(D)")
+        uf.fetch_madison = lambda: uf.parse_cainc4(csv.reader(io.StringIO(cainc4_csv(bad))))
+        uf.run()
+        self.assertEqual(self.feed()["madisonIncome"]["year"], "2023")
+
+    def test_madison_download_failure_keeps_last_good(self):
+        uf.run()
+        good = self.feed()["madisonIncome"]
+
+        def boom():
+            raise RuntimeError("network down")
+        uf.fetch_madison = boom
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["madisonIncome"], good)
 
 
 class IncomeSideTests(Base):
