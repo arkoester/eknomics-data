@@ -27,7 +27,8 @@ def income_quarter(scale=1.0):
          "netInterestDom": 500.0, "busTransfers": 268.914, "proprietors": 2162.796, "rental": 1150.156,
          "govEntSurplus": -65.009, "corpProfits": 4827.390, "prodTaxesLessSubs": 2244.065,
          "socialInsurance": 2099.039, "netInterestMisc": 136.416, "assetIncome": 4304.848,
-         "transfers": 5169.332, "personalTaxes": 3500.0, "pop": 343000.0}
+         "transfers": 5169.332, "personalTaxes": 3500.0, "pop": 343000.0,
+         "corpTaxes": 600.0, "retained": 1500.0}
     v["gnp"] = v["gdp"] + v["incomeFromROW"] - v["incomeToROW"]
     v["nnp"] = v["gnp"] - v["cfc"]
     v["ni"] = v["nnp"] - v["statDisc"]
@@ -37,9 +38,7 @@ def income_quarter(scale=1.0):
                                       + v["rental"] + v["govEntSurplus"])
     v["pi"] = (v["ni"] - v["corpProfits"] - v["prodTaxesLessSubs"] - v["socialInsurance"] - v["netInterestMisc"]
                - v["busTransfers"] - v["govEntSurplus"] + v["assetIncome"] + v["transfers"])
-    v["dpi"] = v["pi"] - v["personalTaxes"]
-    v["outlays"] = v["dpi"] - 1200.0
-    v["saving"] = v["dpi"] - v["outlays"]
+    v["outlays"] = v["pi"] - v["personalTaxes"] - 1200.0
     return v
 
 
@@ -183,6 +182,13 @@ class IncomeSideTests(Base):
         self.assertAlmostEqual(b["values"]["gdi"], 32486.066 - 240.924, places=3)
         self.assertEqual(set(b["values"]), set(uf.INCOME))
         self.assertNotIn("gdpAhead", b)
+        t = b["textbook"]
+        self.assertAlmostEqual(t["ndp"], t["gdp"] - t["depreciation"], places=2)
+        self.assertAlmostEqual(t["ni"], t["ndp"] - t["indirectTaxes"] + t["netForeignIncome"] - t["statDisc"], places=2)
+        self.assertAlmostEqual(t["pi"], t["ni"] - t["corpTaxes"] - t["retained"] - t["socialSecurityTaxes"]
+                               + t["transfers"] + t["netInterest"], places=2)
+        self.assertAlmostEqual(t["saving"], 1200.0, places=2)
+        self.assertGreater(t["netInterest"], 0)
 
     def test_gdp_ahead_stays_out_of_the_block(self):
         self.data["GDP"] = self.data["GDP"] + [("2026-07-01", "33000.000")]
