@@ -87,6 +87,7 @@ class Base(unittest.TestCase):
             "ATNHPIUS17119A": [(f"{y}-01-01", str(100 + y - 2000)) for y in range(2010, 2026)],
         }
         self.data.update(income_data())
+        self.data["A072RC1A156NBEA"] = [(f"{y}-01-01", "7.5") for y in range(1959, 2026)]
         uf.fetch_fred = lambda sid: list(self.data[sid])
         self.orig_madison = uf.fetch_madison
         uf.fetch_madison = lambda: uf.parse_cainc4(csv.reader(io.StringIO(CAINC4_CSV)))

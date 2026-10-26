@@ -52,6 +52,9 @@ SERIES = {
     "madisonMedianDaysOnMarket": {"fred": "MEDDAYONMAR17119", "label": "Median days on market, Madison County, IL",
                                   "unit": "days", "source": "Realtor.com (via FRED)", "frequency": "monthly",
                                   "range": (1, 365), "decimals": 0},
+    "savingRateAnnual": {"fred": "A072RC1A156NBEA", "label": "Personal saving rate, annual (percent of disposable income)",
+                         "unit": "percent", "source": "BEA (via FRED)", "frequency": "annual",
+                         "range": (-5, 40), "annualValues": True, "firstYear": 1959, "decimals": 1},
     "madisonHPI": {"fred": "ATNHPIUS17119A", "label": "House price index, Madison County, IL (2000 = 100)",
                    "unit": "index", "source": "FHFA (via FRED)", "frequency": "annual",
                    "range": (50, 1000), "annualValues": True, "decimals": 2},
@@ -93,11 +96,12 @@ def fetch_fred(series_id):
     key = os.environ.get("FRED_API_KEY", "").strip()
     if key:
         url = "https://api.stlouisfed.org/fred/series/observations?" + urllib.parse.urlencode(
-            {"series_id": series_id, "api_key": key, "file_type": "json", "observation_start": "2015-01-01"})
+            {"series_id": series_id, "api_key": key, "file_type": "json",
+             "observation_start": "1959-01-01" if series_id.endswith("A156NBEA") else "2015-01-01"})
         data = json.loads(_get(url))
         return [(o["date"], o["value"]) for o in data.get("observations", [])]
     url = "https://fred.stlouisfed.org/graph/fredgraph.csv?" + urllib.parse.urlencode(
-        {"id": series_id, "cosd": "2015-01-01"})
+        {"id": series_id, "cosd": "1959-01-01" if series_id.endswith("A156NBEA") else "2015-01-01"})
     return parse_csv(_get(url))
 
 
@@ -149,7 +153,7 @@ def build_series(spec, obs, prev):
     if spec.get("july"):
         s["july"] = {d[:4]: _num(v, dec) for d, v in obs if d[5:7] == "07" and int(d[:4]) >= FIRST_YEAR}
     if spec.get("annualValues"):
-        s["annual"] = {d[:4]: _num(v, dec) for d, v in obs if int(d[:4]) >= FIRST_YEAR}
+        s["annual"] = {d[:4]: _num(v, dec) for d, v in obs if int(d[:4]) >= spec.get("firstYear", FIRST_YEAR)}
     return s
 
 
