@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-10-30T19:27:30Z",
+ "checkedAt": "2026-11-06T20:28:01Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -10,14 +10,10 @@
    "fred": "MORTGAGE30US",
    "frequency": "weekly",
    "latest": {
-    "date": "2026-10-29",
-    "value": 7.24
+    "date": "2026-11-05",
+    "value": 7.18
    },
    "recent": [
-    [
-     "2026-08-06",
-     6.69
-    ],
     [
      "2026-08-13",
      6.67
@@ -65,6 +61,10 @@
     [
      "2026-10-29",
      7.24
+    ],
+    [
+     "2026-11-05",
+     7.18
     ]
    ],
    "annual": {
@@ -78,9 +78,9 @@
     "2023": 6.81,
     "2024": 6.72,
     "2025": 6.6,
-    "2026": 6.52
+    "2026": 6.53
    },
-   "annualThrough": "2026-10-29"
+   "annualThrough": "2026-11-05"
   },
   "mortgage15": {
    "label": "15-year fixed mortgage rate",
@@ -89,14 +89,10 @@
    "fred": "MORTGAGE15US",
    "frequency": "weekly",
    "latest": {
-    "date": "2026-10-29",
-    "value": 6.6
+    "date": "2026-11-05",
+    "value": 6.57
    },
    "recent": [
-    [
-     "2026-08-06",
-     6.01
-    ],
     [
      "2026-08-13",
      5.96
@@ -144,6 +140,10 @@
     [
      "2026-10-29",
      6.6
+    ],
+    [
+     "2026-11-05",
+     6.57
     ]
    ]
   },
@@ -154,8 +154,8 @@
    "fred": "ACTLISCOUIL",
    "frequency": "monthly",
    "latest": {
-    "date": "2026-09-01",
-    "value": 22584
+    "date": "2026-10-01",
+    "value": 23875
    },
    "july": {
     "2016": 61154,
@@ -178,8 +178,8 @@
    "fred": "MEDLISPRI17119",
    "frequency": "monthly",
    "latest": {
-    "date": "2026-09-01",
-    "value": 249950
+    "date": "2026-10-01",
+    "value": 240000
    }
   },
   "madisonMedianDaysOnMarket": {
@@ -189,8 +189,8 @@
    "fred": "MEDDAYONMAR17119",
    "frequency": "monthly",
    "latest": {
-    "date": "2026-09-01",
-    "value": 44
+    "date": "2026-10-01",
+    "value": 45
    }
   },
   "savingRateAnnual": {
