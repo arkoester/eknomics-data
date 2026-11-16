@@ -70,6 +70,27 @@ MAD["10"] = tuple(MAD["45"][i] + MAD["46"][i] + MAD["47"][i] for i in range(2))
 CAINC4_CSV = cainc4_csv(MAD)
 
 
+def price_data():
+    """FRED-shaped history for the Ch 24 Price Time Machine series."""
+    def months(val_by_year, last):
+        out = [(f"{y}-{m:02d}-01", str(v)) for y, v in val_by_year.items() for m in range(1, 13)]
+        return out + [("2026-08-01", str(last))]
+    quarters = [(f"{y}-{m:02d}-01", str(v)) for y, v in {1971: 21.2, 1995: 66.9, 2008: 88.0}.items() for m in (1, 4, 7, 10)]
+    return {
+        "GDPDEF": quarters + [("2026-04-01", "133.4")],
+        "APU000074714": months({2025: 3.2}, 4.2), "APU0000708111": months({2025: 3.0}, 2.27),
+        "APU0000704111": months({2025: 6.9}, 6.6), "APU0000702111": months({2025: 1.9}, 1.82),
+        "MSPUS": [("2026-01-01", "408500"), ("2026-04-01", "413500")],
+        "CPIAPPSL": months({1971: 61.0, 1995: 132.0, 2008: 119.0}, 136.5),
+    }
+
+
+PM_MANUAL = {"movie": {"value": 11.31, "date": "2025-12-31", "source": "The Numbers"},
+             "stamp": {"value": 0.82, "date": "2026-07-12", "source": "USPS"},
+             "tuition": {"value": 9750, "date": "2022-09-01", "source": "NCES"},
+             "minWage": {"federal": 7.25, "illinois": 15.0, "source": "DOL"}}
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -88,6 +109,7 @@ class Base(unittest.TestCase):
         }
         self.data.update(income_data())
         self.data["A072RC1A156NBEA"] = [(f"{y}-01-01", "7.5") for y in range(1959, 2026)]
+        self.data.update(price_data())
         uf.fetch_fred = lambda sid: list(self.data[sid])
         self.orig_madison = uf.fetch_madison
         uf.fetch_madison = lambda: uf.parse_cainc4(csv.reader(io.StringIO(CAINC4_CSV)))
@@ -375,6 +397,68 @@ class TaxYearTests(Base):
         self.write_manual(self.manual)
         self.assertEqual(uf.run(), 0)
         self.assertNotIn("taxYears", self.feed()["manual"])
+
+
+class PriceMachineTests(Base):
+    def base_manual(self, **pm):
+        m = {"arm51": {"value": 6.10, "date": "2026-09-18", "source": "MBA", "armShare": 9.8},
+             "insuranceIL200k": {"value": 2039, "date": "2026-08-04", "source": "Insure.com"},
+             "taxRateMadison": {"value": 1.75, "date": "2026-09-29", "source": "SmartAsset"},
+             "priceMachine": json.loads(json.dumps(PM_MANUAL))}
+        m["priceMachine"].update(pm)
+        self.write_manual(m)
+
+    def test_block_built(self):
+        self.base_manual()
+        self.assertEqual(uf.run(), 0)
+        p = self.feed()["priceMachine"]
+        self.assertEqual(p["deflator"]["years"], {"1971": 21.2, "1995": 66.9, "2008": 88.0})
+        self.assertEqual(p["deflator"]["latest"], {"date": "2026-04-01", "value": 133.4})
+        self.assertEqual(p["items"]["gas"]["latest"], {"date": "2026-08-01", "value": 4.2})
+        self.assertEqual(p["items"]["house"]["latest"]["value"], 413500)
+        self.assertEqual(p["items"]["clothes"]["years"]["1995"], 132.0)
+        self.assertEqual(p["items"]["stamp"]["latest"]["value"], 0.82)
+        self.assertEqual(p["minWage"]["illinois"], 15.0)
+        self.assertEqual(set(p["items"]), {"gas", "eggs", "bacon", "bread", "house", "clothes", "movie", "stamp", "tuition"})
+
+    def test_without_manual_block_no_warning(self):
+        self.assertEqual(uf.run(), 0)
+        p = self.feed()["priceMachine"]
+        self.assertNotIn("movie", p["items"])
+        self.assertNotIn("minWage", p)
+
+    def test_bad_price_keeps_last_good(self):
+        self.base_manual()
+        uf.run()
+        self.data["APU000074714"] = self.data["APU000074714"][:-1] + [("2026-09-01", "44.5")]
+        self.assertEqual(uf.run(), 1)
+        f = self.feed()
+        self.assertEqual(f["priceMachine"]["items"]["gas"]["latest"]["value"], 4.2)
+        self.assertTrue(any("priceMachine gas" in w for w in f["warnings"]))
+
+    def test_missing_quarter_keeps_last_deflator(self):
+        self.base_manual()
+        uf.run()
+        self.data["GDPDEF"] = self.data["GDPDEF"][1:]
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["priceMachine"]["deflator"]["years"]["1971"], 21.2)
+
+    def test_bad_manual_keeps_last_good(self):
+        self.base_manual()
+        uf.run()
+        self.base_manual(stamp={"value": 82, "date": "2027-01-20", "source": "USPS"},
+                         minWage={"federal": 7.25, "illinois": 5.0})
+        self.assertEqual(uf.run(), 1)
+        p = self.feed()["priceMachine"]
+        self.assertEqual(p["items"]["stamp"]["latest"]["value"], 0.82)
+        self.assertEqual(p["minWage"]["illinois"], 15.0)
+
+    def test_download_failure_keeps_last_good(self):
+        self.base_manual()
+        uf.run()
+        del self.data["CPIAPPSL"]
+        self.assertEqual(uf.run(), 1)
+        self.assertEqual(self.feed()["priceMachine"]["items"]["clothes"]["years"]["2008"], 119.0)
 
 
 if __name__ == "__main__":

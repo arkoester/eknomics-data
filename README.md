@@ -24,6 +24,8 @@ If both are unreachable (a web filter, no Wi-Fi), each module falls back to the 
 | Ch 12 tax figures (`taxYears`): federal brackets and standard deduction, Social Security wage cap, Illinois rate and exemption, tips deduction | yearly, a new block for each tax year (IRS and SSA publish in October; Illinois in December or January) | scheduled Claude check adds the block to `feed/manual.json` |
 | Ch 23 income side of GDP (`incomeSide`): GDP, GDI, GNP, NNP, national income, personal income, disposable income, saving, and the income lines between them (NIPA Tables 1.7.5, 1.10, 2.1) | weekly check (data is quarterly) | same Action |
 | Ch 23 Madison County personal income by type (`madisonIncome`): wages and salaries, supplements, proprietors' income, dividends/interest/rent, transfers (BEA CAINC4 bulk download) | weekly check (data is yearly, each November) | same Action |
+| Ch 24 Price Time Machine (`priceMachine`): GDP deflator (latest quarter plus 1971, 1995 and 2008), average prices of gas, eggs, bacon and bread, the median new house price, the apparel price index | weekly check (data is monthly or quarterly) | same Action |
+| Ch 24 Price Time Machine, hand-checked items under `priceMachine` in `feed/manual.json`: movie ticket, stamp, public 4-year tuition, federal and Illinois minimum wage | yearly (stamp: each January and July) | scheduled Claude check updates `feed/manual.json` |
 | Ch 12 Illinois gas tax (`ilMotorFuel`) | each July 1 (and whenever the state pauses or restarts an increase) | scheduled Claude check updates `feed/manual.json` |
 
 Every number is checked against a sane range before it is published. If a download fails or a number looks wrong, the Action keeps last week's good numbers and opens an issue titled **"Data refresh needs attention"** (you get an email). Students are not affected while it is open.
@@ -76,3 +78,7 @@ Each tax year is one block under `taxYears`, single-filer figures only. The Ch 1
 The script checks every block before publishing it: brackets must rise in both threshold and rate, every number must be in a sane range, the sources must be filled in, and a new year may move the standard deduction, bracket thresholds and wage cap by only a few percent from the year before (a typo like 161000 for 16100 is refused). A block that fails keeps last week's good copy and opens the usual "Data refresh needs attention" issue. From February on, a missing block for the current year also opens the issue.
 
 `ilMotorFuel` holds the current Illinois gas tax per gallon. To schedule a change in advance, add `"next": {"cents": ..., "date": "YYYY-MM-DD"}`; modules switch on that date.
+
+## Ch 24 Price Time Machine (`priceMachine`)
+
+`deflator.years` and `deflator.latest` always come from the same download, so a BEA base-year change never mixes two bases; the same holds for the apparel index (`items.clothes`). Every other item is a plain dollar price in `items.<name>.latest`. Past prices for 1971, 1995 and 2008 are built into the module because they never change. Each piece is range-checked on its own: one bad or missing piece keeps last week's good copy of that piece and opens the usual issue, and the module falls back to its built-in number for anything the feed lacks. Students' numbers are locked the moment they pick their year.

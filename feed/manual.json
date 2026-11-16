@@ -95,5 +95,38 @@
   "source": "Illinois Department of Revenue, Informational Bulletin FY 2026-23 (revised for Public Act 104-0468)",
   "url": "https://tax.illinois.gov/research/publications/bulletins/fy-2026-23.html",
   "checkedAt": "2026-10-22"
+ },
+ "priceMachine": {
+  "movie": {
+   "value": 11.31,
+   "date": "2025-12-31",
+   "source": "The Numbers, estimated average US ticket price for 2025 (NATO method; NATO stopped publishing after 2019)",
+   "url": "https://www.the-numbers.com/market/",
+   "refresh": "yearly, each January",
+   "checkedAt": "2026-11-16"
+  },
+  "stamp": {
+   "value": 0.82,
+   "date": "2026-07-12",
+   "source": "U.S. Postal Service, Domestic Letter Rates Since 1863",
+   "url": "https://about.usps.com/who/profile/history/domestic-letter-rates-since-1863.htm",
+   "refresh": "each January and July (USPS price changes)",
+   "checkedAt": "2026-11-16"
+  },
+  "tuition": {
+   "value": 9750,
+   "date": "2022-09-01",
+   "source": "NCES Digest of Education Statistics, Table 330.10: in-state tuition and required fees, public 4-year institutions, 2022-23",
+   "url": "https://nces.ed.gov/programs/digest/d23/tables/dt23_330.10.asp",
+   "refresh": "yearly, when a new Digest table posts; use the same table so it matches the 1971, 1995 and 2008 figures built into the module",
+   "checkedAt": "2026-11-16"
+  },
+  "minWage": {
+   "federal": 7.25,
+   "illinois": 15.0,
+   "source": "U.S. Department of Labor; Illinois Department of Labor",
+   "refresh": "yearly, each January",
+   "checkedAt": "2026-11-16"
+  }
  }
 }
