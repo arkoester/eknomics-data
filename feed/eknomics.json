@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "about": "Public economic numbers for eKnomics modules. Numbers only; no student data.",
- "checkedAt": "2026-11-13T20:55:11Z",
+ "checkedAt": "2026-11-16T16:05:18Z",
  "series": {
   "mortgage30": {
    "label": "30-year fixed mortgage rate",
@@ -510,6 +510,103 @@
    "wages": 6716585.0,
    "supplements": 1669126.0,
    "proprietors": 868341.0
+  }
+ },
+ "priceMachine": {
+  "checkedAt": "2026-11-16",
+  "label": "Ch 24 Price Time Machine: today's prices and the GDP deflator",
+  "source": "BLS, BEA and Census (via FRED); hand-checked items carry their own source",
+  "items": {
+   "gas": {
+    "fred": "APU000074714",
+    "latest": {
+     "date": "2026-10-01",
+     "value": 4.454
+    }
+   },
+   "eggs": {
+    "fred": "APU0000708111",
+    "latest": {
+     "date": "2026-10-01",
+     "value": 2.32
+    }
+   },
+   "bacon": {
+    "fred": "APU0000704111",
+    "latest": {
+     "date": "2026-10-01",
+     "value": 6.686
+    }
+   },
+   "bread": {
+    "fred": "APU0000702111",
+    "latest": {
+     "date": "2026-10-01",
+     "value": 1.861
+    }
+   },
+   "house": {
+    "fred": "MSPUS",
+    "latest": {
+     "date": "2026-07-01",
+     "value": 393300
+    }
+   },
+   "clothes": {
+    "fred": "CPIAPPSL",
+    "latest": {
+     "date": "2026-10-01",
+     "value": 136.985
+    },
+    "years": {
+     "1971": 61.067,
+     "1995": 131.992,
+     "2008": 118.903
+    }
+   },
+   "movie": {
+    "latest": {
+     "date": "2025-12-31",
+     "value": 11.31
+    },
+    "source": "The Numbers, estimated average US ticket price for 2025 (NATO method; NATO stopped publishing after 2019)",
+    "checkedAt": "2026-11-16"
+   },
+   "stamp": {
+    "latest": {
+     "date": "2026-07-12",
+     "value": 0.82
+    },
+    "source": "U.S. Postal Service, Domestic Letter Rates Since 1863",
+    "checkedAt": "2026-11-16"
+   },
+   "tuition": {
+    "latest": {
+     "date": "2022-09-01",
+     "value": 9750
+    },
+    "source": "NCES Digest of Education Statistics, Table 330.10: in-state tuition and required fees, public 4-year institutions, 2022-23",
+    "checkedAt": "2026-11-16"
+   }
+  },
+  "deflator": {
+   "fred": "GDPDEF",
+   "unit": "index, same base year for every value",
+   "latest": {
+    "date": "2026-07-01",
+    "value": 134.127
+   },
+   "years": {
+    "1971": 21.21,
+    "1995": 66.936,
+    "2008": 88.016
+   }
+  },
+  "minWage": {
+   "federal": 7.25,
+   "illinois": 15.0,
+   "source": "U.S. Department of Labor; Illinois Department of Labor",
+   "checkedAt": "2026-11-16"
   }
  }
 }
