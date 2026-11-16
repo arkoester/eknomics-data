@@ -60,6 +60,21 @@ SERIES = {
                    "range": (50, 1000), "annualValues": True, "decimals": 2},
 }
 
+# Ch 24 "The Price Time Machine": today's prices next to 1971, 1995 and 2008.
+# key: (FRED id, low, high, decimals, needs past-year averages from the same series)
+PRICE_YEARS = ("1971", "1995", "2008")
+PRICE_DEFLATOR = "GDPDEF"
+PRICE_ITEMS = {
+    "gas": ("APU000074714", 1, 12, 3, False),
+    "eggs": ("APU0000708111", 0.8, 12, 3, False),
+    "bacon": ("APU0000704111", 3, 20, 3, False),
+    "bread": ("APU0000702111", 1, 6, 3, False),
+    "house": ("MSPUS", 200000, 900000, 0, False),
+    "clothes": ("CPIAPPSL", 100, 250, 3, True),
+}
+PRICE_MANUAL = {"movie": (8, 30), "stamp": (0.5, 2), "tuition": (8000, 25000)}  # hand-checked yearly
+LONG_HISTORY = {PRICE_DEFLATOR, "CPIAPPSL"}
+
 MANUAL_RULES = {
     "arm51": {"range": (1, 20), "maxAgeDays": 150},            # refreshed quarterly
     "insuranceIL200k": {"range": (300, 10000), "maxAgeDays": 450},  # refreshed yearly
@@ -92,16 +107,22 @@ def parse_csv(text):
     return [(r[0].strip(), r[1].strip()) for r in rows[1:] if len(r) >= 2]
 
 
+def _start(series_id):
+    if series_id in LONG_HISTORY:
+        return "1971-01-01"
+    return "1959-01-01" if series_id.endswith("A156NBEA") else "2015-01-01"
+
+
 def fetch_fred(series_id):
     key = os.environ.get("FRED_API_KEY", "").strip()
     if key:
         url = "https://api.stlouisfed.org/fred/series/observations?" + urllib.parse.urlencode(
             {"series_id": series_id, "api_key": key, "file_type": "json",
-             "observation_start": "1959-01-01" if series_id.endswith("A156NBEA") else "2015-01-01"})
+             "observation_start": _start(series_id)})
         data = json.loads(_get(url))
         return [(o["date"], o["value"]) for o in data.get("observations", [])]
     url = "https://fred.stlouisfed.org/graph/fredgraph.csv?" + urllib.parse.urlencode(
-        {"id": series_id, "cosd": "1959-01-01" if series_id.endswith("A156NBEA") else "2015-01-01"})
+        {"id": series_id, "cosd": _start(series_id)})
     return parse_csv(_get(url))
 
 
@@ -531,6 +552,86 @@ def fetch_madison():
     return parse_cainc4(csv.reader(io.StringIO(text)))
 
 
+def _year_avgs(obs, per_year):
+    """Average of each PRICE_YEARS year; every period of the year must be present."""
+    out = {}
+    for y in PRICE_YEARS:
+        vs = [v for d, v in obs if d[:4] == y]
+        if len(vs) != per_year:
+            raise ValueError(f"{y} has {len(vs)} observations, expected {per_year}")
+        out[y] = round(sum(vs) / len(vs), 3)
+    return out
+
+
+def build_price_machine(fetched, manual, prev, warnings):
+    """Ch 24 Price Time Machine block. Each piece that fails keeps last week's good copy."""
+    prev = prev or {}
+    block = {"checkedAt": today().isoformat(), "label": "Ch 24 Price Time Machine: today's prices and the GDP deflator",
+             "source": "BLS, BEA and Census (via FRED); hand-checked items carry their own source", "items": {}}
+
+    def keep(name, why, old):
+        warnings.append(f"priceMachine {name}: {why}; kept last week's good copy")
+        return old
+
+    def latest_of(obs, lo, hi, dec):
+        d, v = obs[-1]
+        if d > today().isoformat():
+            raise ValueError(f"latest date {d} is in the future")
+        if not lo <= v <= hi:
+            raise ValueError(f"latest value {v} outside {lo} to {hi}")
+        return {"date": d, "value": _num(v, dec)}
+
+    try:
+        obs = fetched[PRICE_DEFLATOR]
+        block["deflator"] = {"fred": PRICE_DEFLATOR, "unit": "index, same base year for every value",
+                             "latest": latest_of(obs, 100, 400, 3), "years": _year_avgs(obs, 4)}
+    except Exception as e:
+        old = keep("deflator", e, prev.get("deflator"))
+        if old:
+            block["deflator"] = old
+    for key, (sid, lo, hi, dec, years) in PRICE_ITEMS.items():
+        try:
+            obs = fetched[sid]
+            item = {"fred": sid, "latest": latest_of(obs, lo, hi, dec)}
+            if years:
+                item["years"] = _year_avgs(obs, 12)
+            block["items"][key] = item
+        except Exception as e:
+            old = keep(key, e, (prev.get("items") or {}).get(key))
+            if old:
+                block["items"][key] = old
+    pm = (manual or {}).get("priceMachine") or {}
+    for key, (lo, hi) in PRICE_MANUAL.items():
+        m, old = pm.get(key), (prev.get("items") or {}).get(key)
+        if m is None:
+            if old:
+                block["items"][key] = old
+            continue
+        try:
+            _num_in(m.get("value"), lo, hi, key)
+            _iso(m.get("date"), key + " date")
+            if not m.get("source"):
+                raise ValueError("source is missing")
+            block["items"][key] = {"latest": {"date": m["date"], "value": m["value"]}, "source": m["source"],
+                                   "checkedAt": m.get("checkedAt")}
+        except Exception as e:
+            old = keep(key, e, old)
+            if old:
+                block["items"][key] = old
+    mw, old = pm.get("minWage"), prev.get("minWage")
+    if mw is not None:
+        try:
+            _num_in(mw.get("federal"), 7.25, 30, "federal minimum wage")
+            _num_in(mw.get("illinois"), mw["federal"], 40, "Illinois minimum wage")
+            block["minWage"] = {"federal": mw["federal"], "illinois": mw["illinois"], "source": mw.get("source"),
+                                "checkedAt": mw.get("checkedAt")}
+        except Exception as e:
+            old = keep("minWage", e, old)
+    if "minWage" not in block and old:
+        block["minWage"] = old
+    return block if block.get("deflator") else None
+
+
 def load(path):
     try:
         with open(path, encoding="utf-8") as f:
@@ -582,6 +683,15 @@ def run():
         madison = prev.get("madisonIncome")
     if madison:
         feed["madisonIncome"] = madison
+    pm_fetched = {}
+    for sid in [PRICE_DEFLATOR] + [v[0] for v in PRICE_ITEMS.values()]:
+        try:
+            pm_fetched[sid] = clean(fetch_fred(sid))
+        except Exception as e:
+            warnings.append(f"priceMachine {sid}: {e}")
+    price = build_price_machine(pm_fetched, manual, prev.get("priceMachine"), warnings)
+    if price:
+        feed["priceMachine"] = price
     feed["warnings"] = warnings
     os.makedirs(os.path.dirname(FEED), exist_ok=True)
     with open(FEED, "w", encoding="utf-8") as f:
@@ -592,6 +702,8 @@ def run():
     if feed.get("incomeSide"):
         b = feed["incomeSide"]
         print(f"{'incomeSide':28s} quarter {b['quarter']}" + (f" (GDP ahead: {b['gdpAhead']['date']})" if b.get("gdpAhead") else ""))
+    if feed.get("priceMachine"):
+        print(f"{'priceMachine':28s} deflator {feed['priceMachine']['deflator']['latest']}, {len(feed['priceMachine']['items'])} items")
     if feed.get("madisonIncome"):
         print(f"{'madisonIncome':28s} year {feed['madisonIncome']['year']}")
     for w in warnings:
